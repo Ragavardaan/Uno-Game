@@ -1,0 +1,6 @@
+{
+  "name": "Multiplayer Uno",
+  "description": "A real-time multiplayer UNO card game featuring dynamic room lobbies, customizable player profiles, sound effects, special visual animations, and support for real-time play with standard rules.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
