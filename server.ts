@@ -32,6 +32,7 @@ const rooms = new Map<string, {
   lastActionSound?: 'play' | 'draw' | 'uno' | 'error' | 'win' | 'start' | 'shuffle';
   chats: ChatMessage[];
   drawnCardThisTurn: Card | null; // Stores card drawn but not yet kept/played
+  maxPlayers?: number;
 }>();
 
 // Map sockets to metadata
@@ -131,6 +132,7 @@ function getSanitizedRoomState(room: ReturnType<typeof rooms.get> & {}, recipien
     discardPileCount: room.discardPile.length,
     lastActionDescription: room.lastActionDescription,
     lastActionSound: room.lastActionSound,
+    maxPlayers: room.maxPlayers || 8,
   };
 }
 
@@ -472,6 +474,9 @@ wss.on('connection', (ws) => {
             unoDeclared: false,
           };
 
+          const reqMax = Number(data.maxPlayers);
+          const maxPlayersLimit = (!isNaN(reqMax) && reqMax >= 2) ? reqMax : 8;
+
           rooms.set(roomId, {
             roomId,
             players: [creator],
@@ -487,13 +492,14 @@ wss.on('connection', (ws) => {
             lastActionSound: 'shuffle',
             chats: [],
             drawnCardThisTurn: null,
+            maxPlayers: maxPlayersLimit,
           });
 
           session.roomId = roomId;
           session.playerId = playerId;
 
           const room = rooms.get(roomId)!;
-          addSystemChat(room, `👋 ${creator.name} opened the room Lobby! Play with friends (Room: ${roomId}) or add bots!`);
+          addSystemChat(room, `👋 ${creator.name} opened the room Lobby! Seat capacity set to **${maxPlayersLimit} players**. Room Code: ${roomId}`);
 
           // Reply with confirmation
           ws.send(JSON.stringify({
@@ -546,8 +552,9 @@ wss.on('connection', (ws) => {
           }
 
           // Otherwise, join as a new player
-          if (room.players.length >= 8) {
-            ws.send(JSON.stringify({ type: 'error', message: 'Room lobby is full! (Max 8 players)' }));
+          const limit = room.maxPlayers || 8;
+          if (room.players.length >= limit) {
+            ws.send(JSON.stringify({ type: 'error', message: `Room lobby is full! (Max ${limit} players)` }));
             return;
           }
 
@@ -594,8 +601,9 @@ wss.on('connection', (ws) => {
             return;
           }
 
-          if (room.players.length >= 8) {
-            ws.send(JSON.stringify({ type: 'error', message: 'Cannot add bot, room is full.' }));
+          const limit = room.maxPlayers || 8;
+          if (room.players.length >= limit) {
+            ws.send(JSON.stringify({ type: 'error', message: `Cannot add bot, room is full (Max ${limit} players).` }));
             return;
           }
 
@@ -619,6 +627,35 @@ wss.on('connection', (ws) => {
 
           room.players.push(botPlay);
           addSystemChat(room, `🤖 ${botPlay.name} (AI Bot) has been added to the game lobby.`);
+          broadcastRoom(rId!);
+          break;
+        }
+
+        // UPDATE ROOM CAPACITY (Host only)
+        case 'update_capacity': {
+          const rId = session.roomId;
+          const room = rooms.get(rId || '');
+          if (!room || !session.playerId) return;
+
+          const hostPlayer = room.players.find(p => p.id === session.playerId);
+          if (!hostPlayer || !hostPlayer.isHost) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Only hosts can change room capacity!' }));
+            return;
+          }
+
+          const newMax = Number(data.maxPlayers);
+          if (isNaN(newMax) || newMax < 2) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Invalid capacity size!' }));
+            return;
+          }
+
+          if (room.players.length > newMax) {
+            ws.send(JSON.stringify({ type: 'error', message: `Cannot set capacity to ${newMax} because there are already ${room.players.length} active players!` }));
+            return;
+          }
+
+          room.maxPlayers = newMax;
+          addSystemChat(room, `⚙️ Host updated the room seat capacity to **${newMax} players**.`);
           broadcastRoom(rId!);
           break;
         }
