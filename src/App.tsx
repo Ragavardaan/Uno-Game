@@ -44,6 +44,7 @@ export default function App() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [chatOpen, setChatOpen] = useState(true);
   const [gameRulesOpen, setGameRulesOpen] = useState(false);
+  const [maxPlayers, setMaxPlayers] = useState<number>(8);
 
   // Wild Card color pick state
   const [pendingWildCardUid, setPendingWildCardUid] = useState<string | null>(null);
@@ -199,8 +200,18 @@ export default function App() {
         name: profileName.trim(),
         avatar: profileAvatar,
         color: profileColor,
+        maxPlayers,
       }
     }));
+  };
+
+  const updateRoomCapacity = (newCapacity: number) => {
+    if (wsRef.current) {
+      wsRef.current.send(JSON.stringify({
+        type: 'update_capacity',
+        data: { maxPlayers: newCapacity }
+      }));
+    }
   };
 
   const sendJoinRoom = (code?: string) => {
@@ -633,6 +644,23 @@ export default function App() {
                     </div>
                     <h3 className="text-md font-bold text-white uppercase tracking-wider">Host Multi Player Lobby</h3>
                     <p className="text-xs text-white/40">Open a dynamic game room. Share your code with friends, play together, or fill vacancies with smart bots.</p>
+
+                    {/* Seat Capacity Selector */}
+                    <div className="flex flex-col gap-1.5 mt-2">
+                      <label className="text-[9px] font-bold text-[#d4af37]/50 uppercase tracking-widest">Lobby Seat Capacity</label>
+                      <select
+                        id="max-players-select"
+                        value={maxPlayers}
+                        onChange={(e) => setMaxPlayers(Number(e.target.value))}
+                        className="w-full bg-[#050506]/90 border border-white/10 focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37] rounded-xl py-2 px-3 text-xs text-white font-bold transition outline-none cursor-pointer"
+                      >
+                        {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 16, 20].map((v) => (
+                          <option key={v} value={v} className="bg-[#0e0e11] text-white">
+                            {v} Seats Configuration
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                   <button
                     id="create-room-btn"
@@ -734,7 +762,7 @@ export default function App() {
                   <div className="flex flex-col gap-4 relative z-10">
                     <div className="flex justify-between items-center border-b border-white/5 pb-3">
                       <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-white/50 flex items-center gap-2">
-                        👥 TABLE SEATS ({room.players.length}/8)
+                        👥 TABLE SEATS ({room.players.length}/{room.maxPlayers || 8})
                       </h3>
                       {me?.isHost && (
                         <span className="text-[10px] uppercase tracking-wider text-[#d4af37] font-bold flex items-center gap-1">🌟 Room Host</span>
@@ -797,7 +825,7 @@ export default function App() {
                       })}
 
                       {/* Seat vacancy placeholder grids */}
-                      {Array.from({ length: Math.max(0, 4 - room.players.length) }).map((_, idx) => (
+                      {Array.from({ length: Math.min(4, Math.max(0, (room.maxPlayers || 8) - room.players.length)) }).map((_, idx) => (
                         <div
                           key={`empty-${idx}`}
                           className="p-4 border-2 border-dashed border-white/5 bg-[#050506]/20 rounded-2xl flex flex-col items-center justify-center text-center gap-1.5 opacity-30 min-h-[140px]"
@@ -818,10 +846,27 @@ export default function App() {
                     <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
                       {me?.isHost ? (
                         <>
+                          {/* Host Capacity Adjuster */}
+                          <div className="flex items-center gap-2.5 bg-[#141416] px-4 py-2.5 border border-white/10 rounded-full">
+                            <span className="text-[10px] text-white/40 uppercase tracking-widest font-bold font-mono">Capacity</span>
+                            <select
+                              id="lobby-capacity-select"
+                              value={room.maxPlayers || 8}
+                              onChange={(e) => updateRoomCapacity(Number(e.target.value))}
+                              className="bg-transparent text-xs text-[#d4af37] font-bold outline-none cursor-pointer"
+                            >
+                              {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 16, 20].map((v) => (
+                                <option key={v} value={v} className="bg-[#0e0e11] text-white">
+                                  {v} Players
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
                           <button
                             id="add-bot-btn"
                             onClick={addBotPlay}
-                            disabled={room.players.length >= 8}
+                            disabled={room.players.length >= (room.maxPlayers || 8)}
                             className="flex-1 sm:flex-none p-3 px-5 rounded-full bg-[#141416] hover:bg-[#1a1a1c] border border-white/10 hover:border-[#d4af37]/30 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 transition duration-300"
                           >
                             <Plus size={14} /> Add AI Bot 🤖
