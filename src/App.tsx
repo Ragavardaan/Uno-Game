@@ -11,7 +11,7 @@ import { ColorChooser } from './components/ColorChooser';
 import { playSound } from './utils/audio';
 
 // Profiles custom presets
-const AVATAR_PRESETS = ['👑', '🦊', '🐱', '🦖', '🦁', '🦄', '🐼', '🐙', '🐸', '🚀', '🧙', '👽', '👾', '🤠', '😎', '🌶️'];
+const AVATAR_PRESETS = ['🐍', '🦊', '🐱', '🦖', '🦁', '🦄', '🐼', '🐙', '🐸', '🚀', '🧙', '👽', '👾', '🤠', '😎', '💩'];
 const COLOR_PRESETS = [
   { id: 'blue', label: 'Indigo Blue', theme: 'sky-500', text: 'text-sky-400', bg: 'bg-sky-500/20 border-sky-400 text-sky-300' },
   { id: 'purple', label: 'Amethyst Violet', theme: 'purple-500', text: 'text-purple-400', bg: 'bg-purple-500/20 border-purple-400 text-purple-300' },
