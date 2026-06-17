@@ -41,4 +41,5 @@ export interface GameRoomState {
   discardPileCount: number;
   lastActionDescription: string; // Descriptive text of what just happened for the log (e.g. "Bot 1 played Red Skip!", "Player Alice declared UNO!")
   lastActionSound?: 'play' | 'draw' | 'uno' | 'error' | 'win' | 'start' | 'shuffle'; // Sound cues for audio-visual richness
+  maxPlayers?: number;
 }
