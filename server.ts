@@ -6,7 +6,7 @@ import { createServer as createViteServer } from 'vite';
 import { Card, CardColor, CardValue, GameRoomState, Player, ChatMessage } from './src/types';
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // Health endpoint
 app.get('/api/health', (req, res) => {
@@ -15,6 +15,21 @@ app.get('/api/health', (req, res) => {
 
 // Create HTTP server
 const httpServer = createHttpServer(app);
+
+// --- PRODUCTION STATIC ROUTING ---
+const __dirname = path.resolve();
+
+// Serve compiled static files out of the Vite output folder
+app.use(express.static(path.join(__dirname, 'dist')));
+
+// Fallback catch-all middleware to handle client-side routing
+app.get('*', (req, res, next) => {
+  // Prevent overriding your /api/health endpoint
+  if (req.path.startsWith('/api/')) return next();
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
+// ---------------------------------
+
 
 // In-memory persistent database of game rooms
 const rooms = new Map<string, {
