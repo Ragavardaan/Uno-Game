@@ -87,18 +87,24 @@ export default function App() {
   }, [profileName, profileAvatar, profileColor]);
 
   // Connect WebSocket helper with retry logic
+  // Define this tracker variable immediately ABOVE the connectWS function
+  const reconnectAttemptsRef = useRef(0);
+  
   const connectWS = () => {
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsHost = window.location.host;
-    const wsUrl = `${wsProtocol}//${wsHost}`;
+    
+    // FIX 1: Appended '/ws' path to route through Render's proxy successfully
+    const wsUrl = `${wsProtocol}//${wsHost}/ws`;
 
-    console.log('Connecting to UNO WebSocket at:', wsUrl);
+    console.log(`[WebSocket] Connecting to UNO engine at: ${wsUrl}`);
     const socket = new WebSocket(wsUrl);
 
     socket.onopen = () => {
-      console.log('WebSocket Connection Opened');
+      console.log('[WebSocket] Connection established successfully!');
       setConnected(true);
       setError(null);
+      reconnectAttemptsRef.current = 0; // Reset retry counter upon success
 
       // Attempt seating recovery if parameters are present
       if (savedRoomId && savedPlayerId) {
@@ -179,13 +185,28 @@ export default function App() {
     };
 
     socket.onclose = () => {
-      console.log('WebSocket Connection Closed. Reconnecting in 3 seconds...');
       setConnected(false);
-      setTimeout(connectWS, 3000);
+      
+      // Stop infinite background retries if the server is completely offline
+      if (reconnectAttemptsRef.current >= 6) {
+        setError("Unable to connect to game server. Please refresh the browser tab manually.");
+        console.error("[WebSocket] Maximum connection attempts reached.");
+        return;
+      }
+
+      reconnectAttemptsRef.current++;
+      
+      // FIX 2: Dynamic exponential backoff delay (2s, 4s, 8s, 16s...)
+      // This seamlessly waits out Render's spin-up cycle without spamming requests
+      const retryDelay = 2000 * Math.pow(2, reconnectAttemptsRef.current - 1);
+      
+      console.warn(`[WebSocket] Closed. Attempting retry #${reconnectAttemptsRef.current} in ${retryDelay / 1000}s...`);
+      setTimeout(connectWS, retryDelay);
     };
 
     wsRef.current = socket;
   };
+
 
   // Profile setup actions
   const sendCreateRoom = () => {
